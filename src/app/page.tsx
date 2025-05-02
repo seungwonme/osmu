@@ -97,7 +97,7 @@ export default function Home() {
       </div>
       {youtubeUrl && (
         <div className="w-full max-w-2xl mb-8 flex justify-center">
-          <div className="aspect-video w-full max-w-xl rounded overflow-hidden shadow border">
+          <div className="aspect-video w-full max-w-xl rounded overflow-hidden shadow border card">
             <iframe
               src={getYoutubeEmbedUrl(youtubeUrl)}
               title="YouTube video player"
@@ -110,7 +110,7 @@ export default function Home() {
       )}
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-2 w-full max-w-xl bg-white p-6 rounded shadow mb-8"
+        className="flex flex-col gap-2 w-full max-w-xl card p-6 mb-8"
       >
         <label htmlFor="youtube-url" className="font-semibold text-left">
           유튜브 링크를 입력하세요
@@ -121,14 +121,10 @@ export default function Home() {
           value={youtubeUrl}
           onChange={handleChange}
           placeholder="https://www.youtube.com/watch?v=..."
-          className="border rounded px-3 py-2"
+          className="input"
           required
         />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white rounded px-4 py-2 mt-2"
-          disabled={isPending}
-        >
+        <button type="submit" className="btn mt-2" disabled={isPending}>
           {isPending ? "불러오는 중..." : "확인"}
         </button>
       </form>
@@ -139,7 +135,7 @@ export default function Home() {
             <div className="text-red-500 mb-4 whitespace-pre-line">{error}</div>
           )}
           {transcript && (
-            <div className="whitespace-pre-wrap bg-gray-100 p-4 rounded shadow">
+            <div className="whitespace-pre-wrap card p-4 mb-4">
               <h2 className="font-bold mb-2 text-gray-700">자막</h2>
               {transcript}
             </div>
@@ -148,7 +144,7 @@ export default function Home() {
         {/* 스레드/링크드인 탭 영역 */}
         {(threadPost || linkedinPost) && (
           <div className="flex-1">
-            <div className="bg-white rounded shadow p-0">
+            <div className="card p-0">
               <div className="flex border-b">
                 <button
                   className={`flex-1 py-2 font-semibold rounded-tl ${
@@ -179,13 +175,13 @@ export default function Home() {
                     {splitThreadPosts(threadPost).map((item, idx) => (
                       <div
                         key={idx}
-                        className="relative bg-blue-50 rounded p-3 shadow flex items-start"
+                        className="relative bg-blue-50 rounded p-3 shadow flex items-start card"
                       >
                         <span className="flex-1 whitespace-pre-wrap">
                           {item}
                         </span>
                         <button
-                          className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                          className="ml-2 px-2 py-1 text-xs btn"
                           onClick={() =>
                             copyToClipboard(item, (v) =>
                               setCopiedThreadIdx(v ? idx : null),
@@ -200,10 +196,10 @@ export default function Home() {
                   </div>
                 )}
                 {tab === "linkedin" && linkedinPost && (
-                  <div className="relative bg-green-50 rounded p-3 shadow">
+                  <div className="relative bg-green-50 rounded p-3 shadow card">
                     <span className="whitespace-pre-wrap">{linkedinPost}</span>
                     <button
-                      className="absolute top-2 right-2 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      className="absolute top-2 right-2 px-2 py-1 text-xs btn"
                       onClick={() =>
                         copyToClipboard(linkedinPost, setCopiedLinkedin)
                       }
