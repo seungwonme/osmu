@@ -1,103 +1,239 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useTransition } from "react";
+import { getYoutubeTranscript } from "./actions/getYoutubeTranscript";
+import { generatePostFromTranscript } from "./actions/generatePostFromTranscript";
+
+function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
+  navigator.clipboard.writeText(text).then(() => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  });
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [threadPost, setThreadPost] = useState<string | null>(null);
+  const [linkedinPost, setLinkedinPost] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [tab, setTab] = useState<"thread" | "linkedin">("thread");
+  const [copiedThreadIdx, setCopiedThreadIdx] = useState<number | null>(null);
+  const [copiedLinkedin, setCopiedLinkedin] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setYoutubeUrl(e.target.value);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTranscript(null);
+    setThreadPost(null);
+    setLinkedinPost(null);
+    setError(null);
+    startTransition(async () => {
+      const transcriptResult = await getYoutubeTranscript(youtubeUrl);
+      if (transcriptResult.error) {
+        setTranscript(null);
+        setThreadPost(null);
+        setLinkedinPost(null);
+        setError(transcriptResult.error);
+        return;
+      }
+      setTranscript(transcriptResult.transcript ?? null);
+      setError(null);
+      const [threadResult, linkedinResult] = await Promise.all([
+        generatePostFromTranscript({
+          transcript: transcriptResult.transcript ?? "",
+          type: "thread",
+        }),
+        generatePostFromTranscript({
+          transcript: transcriptResult.transcript ?? "",
+          type: "linkedin",
+        }),
+      ]);
+      setThreadPost(
+        typeof threadResult.post === "string"
+          ? threadResult.post
+          : threadResult.post
+          ? JSON.stringify(threadResult.post)
+          : null,
+      );
+      setLinkedinPost(
+        typeof linkedinResult.post === "string"
+          ? linkedinResult.post
+          : linkedinResult.post
+          ? JSON.stringify(linkedinResult.post)
+          : null,
+      );
+      if (threadResult.error || linkedinResult.error) {
+        setError(
+          [threadResult.error, linkedinResult.error].filter(Boolean).join("\n"),
+        );
+      }
+    });
+  };
+
+  // 스레드 글 분리 함수 (---SPLIT--- 기준)
+  function splitThreadPosts(text: string): string[] {
+    if (!text) return [];
+    return text
+      .split(/\n?---SPLIT---\n?/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  return (
+    <main className="flex flex-col items-center min-h-screen p-4 bg-gray-50">
+      <div className="w-full max-w-3xl mb-8 text-center">
+        <h1 className="text-3xl font-extrabold text-blue-700 mb-2">
+          원소스 멀티유즈
+        </h1>
+        <p className="text-gray-700 mb-4">
+          유튜브 자막을 입력하면 스레드/링크드인 스타일의 글을 AI가 자동으로
+          만들어줍니다.
+        </p>
+      </div>
+      {youtubeUrl && (
+        <div className="w-full max-w-2xl mb-8 flex justify-center">
+          <div className="aspect-video w-full max-w-xl rounded overflow-hidden shadow border">
+            <iframe
+              src={getYoutubeEmbedUrl(youtubeUrl)}
+              title="YouTube video player"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="w-full h-full"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )}
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-2 w-full max-w-xl bg-white p-6 rounded shadow mb-8"
+      >
+        <label htmlFor="youtube-url" className="font-semibold text-left">
+          유튜브 링크를 입력하세요
+        </label>
+        <input
+          id="youtube-url"
+          type="url"
+          value={youtubeUrl}
+          onChange={handleChange}
+          placeholder="https://www.youtube.com/watch?v=..."
+          className="border rounded px-3 py-2"
+          required
+        />
+        <button
+          type="submit"
+          className="bg-blue-600 text-white rounded px-4 py-2 mt-2"
+          disabled={isPending}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          {isPending ? "불러오는 중..." : "확인"}
+        </button>
+      </form>
+      <div className="flex flex-row gap-8 w-full max-w-5xl">
+        {/* 자막 영역 */}
+        <div className="flex-1">
+          {error && (
+            <div className="text-red-500 mb-4 whitespace-pre-line">{error}</div>
+          )}
+          {transcript && (
+            <div className="whitespace-pre-wrap bg-gray-100 p-4 rounded shadow">
+              <h2 className="font-bold mb-2 text-gray-700">자막</h2>
+              {transcript}
+            </div>
+          )}
+        </div>
+        {/* 스레드/링크드인 탭 영역 */}
+        {(threadPost || linkedinPost) && (
+          <div className="flex-1">
+            <div className="bg-white rounded shadow p-0">
+              <div className="flex border-b">
+                <button
+                  className={`flex-1 py-2 font-semibold rounded-tl ${
+                    tab === "thread"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                  onClick={() => setTab("thread")}
+                  type="button"
+                >
+                  스레드용 글
+                </button>
+                <button
+                  className={`flex-1 py-2 font-semibold rounded-tr ${
+                    tab === "linkedin"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                  onClick={() => setTab("linkedin")}
+                  type="button"
+                >
+                  링크드인용 글
+                </button>
+              </div>
+              <div className="p-4 min-h-[200px]">
+                {tab === "thread" && threadPost && (
+                  <div className="flex flex-col gap-4">
+                    {splitThreadPosts(threadPost).map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="relative bg-blue-50 rounded p-3 shadow flex items-start"
+                      >
+                        <span className="flex-1 whitespace-pre-wrap">
+                          {item}
+                        </span>
+                        <button
+                          className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                          onClick={() =>
+                            copyToClipboard(item, (v) =>
+                              setCopiedThreadIdx(v ? idx : null),
+                            )
+                          }
+                          type="button"
+                        >
+                          {copiedThreadIdx === idx ? "복사됨" : "복사"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {tab === "linkedin" && linkedinPost && (
+                  <div className="relative bg-green-50 rounded p-3 shadow">
+                    <span className="whitespace-pre-wrap">{linkedinPost}</span>
+                    <button
+                      className="absolute top-2 right-2 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                      onClick={() =>
+                        copyToClipboard(linkedinPost, setCopiedLinkedin)
+                      }
+                      type="button"
+                    >
+                      {copiedLinkedin ? "복사됨" : "복사"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
   );
+}
+
+function getYoutubeEmbedUrl(url: string): string {
+  // https://www.youtube.com/watch?v=xxxx 또는 https://youtu.be/xxxx
+  try {
+    const ytMatch = url.match(
+      /(?:youtu.be\/|youtube.com\/(?:watch\?v=|embed\/))([\w-]{11})/,
+    );
+    const videoId = ytMatch ? ytMatch[1] : null;
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return "";
+  } catch {
+    return "";
+  }
 }
