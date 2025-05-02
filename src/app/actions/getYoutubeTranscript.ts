@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { YoutubeLoader } from "@langchain/community/document_loaders/web/youtube";
