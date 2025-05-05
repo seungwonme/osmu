@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Header() {
   const supabase = createSupabaseBrowserClient();
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
@@ -28,9 +30,9 @@ export default function Header() {
 
   return (
     <header className="w-full flex justify-between items-center px-6 py-4 border-b bg-white/80 sticky top-0 z-10">
-      <a href="/" className="font-bold text-xl text-blue-700">
+      <Link href="/" className="font-bold text-xl text-blue-700">
         원소스 멀티유즈
-      </a>
+      </Link>
       <nav>
         {user ? (
           <button className="btn" onClick={handleLogout}>

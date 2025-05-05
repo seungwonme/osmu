@@ -4,7 +4,6 @@ import { useState, useTransition, useEffect } from "react";
 import { getYoutubeTranscript } from "./actions/getYoutubeTranscript";
 import { generatePostFromTranscript } from "./actions/generatePostFromTranscript";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
 
 function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
   navigator.clipboard.writeText(text).then(() => {
@@ -24,7 +23,6 @@ export default function Home() {
   const [copiedThreadIdx, setCopiedThreadIdx] = useState<number | null>(null);
   const [copiedLinkedin, setCopiedLinkedin] = useState(false);
   const [isMember, setIsMember] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();

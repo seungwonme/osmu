@@ -29,6 +29,7 @@ export default function AuthPage() {
         alert("회원가입이 완료되었습니다. 이메일을 확인해 주세요.");
         setIsLogin(true);
       }
+      /* eslint-disable @typescript-eslint/no-explicit-any */
     } catch (err: any) {
       setError(err.message || "알 수 없는 오류가 발생했습니다.");
     } finally {
