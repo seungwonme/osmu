@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { getYoutubeTranscript } from "./actions/getYoutubeTranscript";
 import { generatePostFromTranscript } from "./actions/generatePostFromTranscript";
+import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
   navigator.clipboard.writeText(text).then(() => {
@@ -21,6 +23,23 @@ export default function Home() {
   const [tab, setTab] = useState<"thread" | "linkedin">("thread");
   const [copiedThreadIdx, setCopiedThreadIdx] = useState<number | null>(null);
   const [copiedLinkedin, setCopiedLinkedin] = useState(false);
+  const [isMember, setIsMember] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsMember(!!data.user);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setIsMember(!!session?.user);
+      },
+    );
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setYoutubeUrl(e.target.value);
@@ -43,34 +62,41 @@ export default function Home() {
       }
       setTranscript(transcriptResult.transcript ?? null);
       setError(null);
-      const [threadResult, linkedinResult] = await Promise.all([
-        generatePostFromTranscript({
-          transcript: transcriptResult.transcript ?? "",
-          type: "thread",
-        }),
-        generatePostFromTranscript({
-          transcript: transcriptResult.transcript ?? "",
-          type: "linkedin",
-        }),
-      ]);
-      setThreadPost(
-        typeof threadResult.post === "string"
-          ? threadResult.post
-          : threadResult.post
-          ? JSON.stringify(threadResult.post)
-          : null,
-      );
-      setLinkedinPost(
-        typeof linkedinResult.post === "string"
-          ? linkedinResult.post
-          : linkedinResult.post
-          ? JSON.stringify(linkedinResult.post)
-          : null,
-      );
-      if (threadResult.error || linkedinResult.error) {
-        setError(
-          [threadResult.error, linkedinResult.error].filter(Boolean).join("\n"),
+      if (isMember) {
+        const [threadResult, linkedinResult] = await Promise.all([
+          generatePostFromTranscript({
+            transcript: transcriptResult.transcript ?? "",
+            type: "thread",
+          }),
+          generatePostFromTranscript({
+            transcript: transcriptResult.transcript ?? "",
+            type: "linkedin",
+          }),
+        ]);
+        setThreadPost(
+          typeof threadResult.post === "string"
+            ? threadResult.post
+            : threadResult.post
+            ? JSON.stringify(threadResult.post)
+            : null,
         );
+        setLinkedinPost(
+          typeof linkedinResult.post === "string"
+            ? linkedinResult.post
+            : linkedinResult.post
+            ? JSON.stringify(linkedinResult.post)
+            : null,
+        );
+        if (threadResult.error || linkedinResult.error) {
+          setError(
+            [threadResult.error, linkedinResult.error]
+              .filter(Boolean)
+              .join("\n"),
+          );
+        }
+      } else {
+        setThreadPost(null);
+        setLinkedinPost(null);
       }
     });
   };
@@ -142,74 +168,88 @@ export default function Home() {
           )}
         </div>
         {/* 스레드/링크드인 탭 영역 */}
-        {(threadPost || linkedinPost) && (
-          <div className="flex-1">
-            <div className="card p-0">
-              <div className="flex border-b">
-                <button
-                  className={`flex-1 py-2 font-semibold rounded-tl ${
-                    tab === "thread"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                  onClick={() => setTab("thread")}
-                  type="button"
-                >
-                  스레드용 글
-                </button>
-                <button
-                  className={`flex-1 py-2 font-semibold rounded-tr ${
-                    tab === "linkedin"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                  onClick={() => setTab("linkedin")}
-                  type="button"
-                >
-                  링크드인용 글
-                </button>
-              </div>
-              <div className="p-4 min-h-[200px]">
-                {tab === "thread" && threadPost && (
-                  <div className="flex flex-col gap-4">
-                    {splitThreadPosts(threadPost).map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="relative bg-blue-50 rounded p-3 shadow flex items-start card"
-                      >
-                        <span className="flex-1 whitespace-pre-wrap">
-                          {item}
-                        </span>
-                        <button
-                          className="ml-2 px-2 py-1 text-xs btn"
-                          onClick={() =>
-                            copyToClipboard(item, (v) =>
-                              setCopiedThreadIdx(v ? idx : null),
-                            )
-                          }
-                          type="button"
+        {isMember ? (
+          (threadPost || linkedinPost) && (
+            <div className="flex-1">
+              <div className="card p-0">
+                <div className="flex border-b">
+                  <button
+                    className={`flex-1 py-2 font-semibold rounded-tl ${
+                      tab === "thread"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                    onClick={() => setTab("thread")}
+                    type="button"
+                  >
+                    스레드용 글
+                  </button>
+                  <button
+                    className={`flex-1 py-2 font-semibold rounded-tr ${
+                      tab === "linkedin"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                    onClick={() => setTab("linkedin")}
+                    type="button"
+                  >
+                    링크드인용 글
+                  </button>
+                </div>
+                <div className="p-4 min-h-[200px]">
+                  {tab === "thread" && threadPost && (
+                    <div className="flex flex-col gap-4">
+                      {splitThreadPosts(threadPost).map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="relative bg-blue-50 rounded p-3 shadow flex items-start card"
                         >
-                          {copiedThreadIdx === idx ? "복사됨" : "복사"}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {tab === "linkedin" && linkedinPost && (
-                  <div className="relative bg-green-50 rounded p-3 shadow card">
-                    <span className="whitespace-pre-wrap">{linkedinPost}</span>
-                    <button
-                      className="absolute top-2 right-2 px-2 py-1 text-xs btn"
-                      onClick={() =>
-                        copyToClipboard(linkedinPost, setCopiedLinkedin)
-                      }
-                      type="button"
-                    >
-                      {copiedLinkedin ? "복사됨" : "복사"}
-                    </button>
-                  </div>
-                )}
+                          <span className="flex-1 whitespace-pre-wrap">
+                            {item}
+                          </span>
+                          <button
+                            className="ml-2 px-2 py-1 text-xs btn"
+                            onClick={() =>
+                              copyToClipboard(item, (v) =>
+                                setCopiedThreadIdx(v ? idx : null),
+                              )
+                            }
+                            type="button"
+                          >
+                            {copiedThreadIdx === idx ? "복사됨" : "복사"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {tab === "linkedin" && linkedinPost && (
+                    <div className="relative bg-green-50 rounded p-3 shadow card">
+                      <span className="whitespace-pre-wrap">
+                        {linkedinPost}
+                      </span>
+                      <button
+                        className="absolute top-2 right-2 px-2 py-1 text-xs btn"
+                        onClick={() =>
+                          copyToClipboard(linkedinPost, setCopiedLinkedin)
+                        }
+                        type="button"
+                      >
+                        {copiedLinkedin ? "복사됨" : "복사"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+          )
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="text-gray-500 text-center mb-4">
+              요약(스레드/링크드인) 기능은 회원만 사용할 수 있습니다.
+              <br />
+              <a href="/auth" className="text-blue-600 underline">
+                로그인/회원가입 하러가기
+              </a>
             </div>
           </div>
         )}
