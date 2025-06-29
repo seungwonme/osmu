@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { getYoutubeTranscript } from "./actions/getYoutubeTranscript";
-import { generatePostFromTranscript } from "./actions/generatePostFromTranscript";
+import { getYoutubeTranscript } from "@/actions/getYoutubeTranscript";
+import { generatePostFromTranscript } from "@/actions/generatePostFromTranscript";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 
 function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
